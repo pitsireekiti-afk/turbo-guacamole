@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funny colorful Balloons 🎈 (Ultimate Sound Edition)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Mitr:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Fredoka One', 'Mitr', sans-serif;
+            background-color: #0f172a;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        /* CSS Animations */
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 2s infinite ease-in-out;
+        }
+
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(236, 72, 153, 0.6); }
+            50% { text-shadow: 0 0 20px rgba(255, 255, 255, 1), 0 0 30px rgba(236, 72, 153, 0.9); }
+        }
+        .animate-glow {
+            animation: glow 1.5s infinite ease-in-out;
+        }
+
+        .btn-press:active {
+            transform: scale(0.95);
+        }
+        
+        #webcam {
+            transform: scaleX(-1);
+            display: none;
+        }
+    </style>
+</head>
+<body class="relative flex items-center justify-center select-none">
+
+    <div id="welcome-screen" class="absolute z-50 inset-0 flex flex-col items-center justify-center bg-slate-900 bg-opacity-90 p-6 transition-all duration-500">
+        <div class="bg-white rounded-3xl p-8 max-w-lg w-full shadow-[0_16px_0_#10b981] border-4 border-emerald-400 text-center relative overflow-hidden">
+            <div class="absolute -top-4 -left-4 text-5xl transform -rotate-12">🎈</div>
+            <div class="absolute -top-4 -right-4 text-5xl transform rotate-12">🎵</div>
+            
+            <h1 class="text-4xl md:text-5xl font-extrabold text-pink-500 animate-bounce-slow animate-glow mb-2 tracking-wider">
+                Funny colorful<br>Balloons 🎈
+            </h1>
+            <span class="inline-block bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full uppercase mb-4 tracking-widest">🔊 พร้อมระบบเสียงเพลงสุดเร้าใจ 🔊</span>
+            
+            <p class="text-gray-600 text-base mb-6 leading-relaxed">
+                ดูภาพวัตถุปริศนา <strong class="text-indigo-600">ขนาดบิ๊กเบิ้ม!</strong> ทายสีให้ถูกโดยจิ้มลูกโป่งแก้วโปร่งแสง <br>
+                <span class="text-amber-600 font-bold">เปิดลำโพง/ใส่หูฟัง แล้วชวนเพื่อน ๆ มาสนุกไปด้วยกันเลย!</span>
+            </p>
+            <button id="start-btn" class="btn-press w-full bg-gradient-to-r from-pink-500 to-amber-500 hover:from-pink-600 hover:to-amber-600 text-white font-bold text-2xl py-4 px-8 rounded-2xl shadow-[0_6px_0_#b91c1c] active:translate-y-1 transition-all duration-100">
+                START GAME 🎮
+            </button>
+            <p id="loading-status" class="text-xs text-gray-500 mt-3 font-semibold">กำลังเชื่อมต่อระบบ AI และเตรียมระบบเสียงสังเคราะห์...</p>
+        </div>
+    </div>
+
+    <div id="gameover-screen" class="absolute z-50 inset-0 flex flex-col items-center justify-center bg-black bg-opacity-85 p-6 hidden transition-all duration-500">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-[0_16px_0_#f43f5e] border-4 border-rose-400 text-center relative">
+            <h2 class="text-4xl font-extrabold text-rose-500 mb-4 animate-bounce-slow">TIME'S UP! ⏰</h2>
+            <p class="text-gray-500 text-lg mb-2">คะแนนรวมทีมของคุณคือ</p>
+            <div class="text-6xl font-black text-amber-500 animate-pulse mb-6" id="final-score">0</div>
+            <button id="restart-btn" class="btn-press w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xl py-3 px-6 rounded-2xl shadow-[0_6px_0_#047857] active:translate-y-1 transition-all duration-100">
+                PLAY AGAIN 🔄
+            </button>
+        </div>
+    </div>
+
+    <div class="absolute top-4 left-4 right-4 z-40 flex flex-col sm:flex-row justify-between items-center gap-4 pointer-events-none">
+        <div class="bg-white/90 backdrop-blur-sm px-6 py-2 rounded-2xl shadow-xl border-4 border-blue-400 flex items-center gap-2 transform -rotate-1 pointer-events-auto">
+            <span class="text-2xl">⭐</span>
+            <span class="text-blue-600 text-xl font-bold">SCORE:</span>
+            <span id="score-text" class="text-2xl font-black text-pink-500">0</span>
+        </div>
+
+        <div id="question-panel" class="bg-gradient-to-r from-yellow-300/95 to-amber-300/95 backdrop-blur-sm rounded-3xl px-8 py-3 border-4 border-yellow-500 shadow-2xl flex items-center gap-6 transform pointer-events-auto transition-all duration-300">
+            <div class="text-left">
+                <h3 id="panel-title" class="text-indigo-900 text-xl font-black tracking-wide">What color is it? 🤔</h3>
+            </div>
+            <div class="flex items-center bg-white px-6 py-2 rounded-2xl shadow-inner border-2 border-amber-400">
+                <span id="question-emoji" class="text-7xl transform scale-110 duration-200">🍎</span>
+            </div>
+        </div>
+        
+        <div class="bg-white/90 backdrop-blur-sm px-6 py-2 rounded-2xl shadow-xl border-4 border-red-400 flex items-center gap-2 transform rotate-1 pointer-events-auto">
+            <span class="text-2xl">⏳</span>
+            <span id="timer-label" class="text-red-600 text-xl font-bold">TIME:</span>
+            <span id="timer-text" class="text-2xl font-black text-rose-500">90s</span>
+        </div>
+    </div>
+
+    <div class="w-screen h-screen relative bg-slate-950">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="game-canvas" class="w-full h-full block"></canvas>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let bgmInterval = null;
+        let bgmStep = 0;
+        let masterGain = null;
+
+        function initAudio() {
+            if (!masterGain) {
+                masterGain = audioCtx.createGain();
+                masterGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                masterGain.connect(audioCtx.destination);
+            }
+        }
+
+        function playPopSound() {
+            try {
+                let now = audioCtx.currentTime;
+                let osc1 = audioCtx.createOscillator(); let gain1 = audioCtx.createGain();
+                osc1.connect(gain1); gain1.connect(audioCtx.destination);
+                osc1.type = 'sine'; osc1.frequency.setValueAtTime(523.25, now);
+                gain1.gain.setValueAtTime(0.2, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc1.start(now); osc1.stop(now + 0.15);
+                
+                let osc2 = audioCtx.createOscillator(); let gain2 = audioCtx.createGain();
+                osc2.connect(gain2); gain2.connect(audioCtx.destination);
+                osc2.type = 'sine'; osc2.frequency.setValueAtTime(659.25, now + 0.08);
+                gain2.gain.setValueAtTime(0.2, now + 0.08); gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc2.start(now + 0.08); osc2.stop(now + 0.25);
+            } catch(e) {}
+        }
+
+        function playWrongSound() {
+            try {
+                let now = audioCtx.currentTime;
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(90, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            } catch(e) {}
+        }
+
+        function playCoinSound() {
+            try {
+                let now = audioCtx.currentTime;
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(987.77, now);
+                osc.frequency.setValueAtTime(1318.51, now + 0.06);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } catch(e) {}
+        }
+
+        const normalMelody = [261.63, 329.63, 392.00, 329.63, 293.66, 349.23, 440.00, 349.23, 329.63, 392.00, 523.25, 392.00, 293.66, 392.00, 493.88, 392.00];
+        const bonusMelody = [440.00, 440.00, 523.25, 440.00, 587.33, 587.33, 523.25, 587.33, 659.25, 659.25, 783.99, 659.25, 587.33, 523.25, 440.00, 392.00];
+
+        function playBGMStep(isBonus) {
+            let now = audioCtx.currentTime;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(masterGain);
+
+            osc.type = 'triangle'; 
+            let melody = isBonus ? bonusMelody : normalMelody;
+            let freq = melody[bgmStep % melody.length];
+            
+            if (isBonus) freq *= 1.2;
+
+            osc.frequency.setValueAtTime(freq, now);
+            let duration = isBonus ? 0.12 : 0.22;
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+            
+            osc.start(now);
+            osc.stop(now + duration);
+            bgmStep++;
+        }
+
+        function startMusic(isBonusModeActive = false) {
+            stopMusic();
+            initAudio();
+            bgmStep = 0;
+            let speed = isBonusModeActive ? 130 : 250;
+            bgmInterval = setInterval(() => {
+                playBGMStep(isBonusModeActive);
+            }, speed);
+        }
+
+        function stopMusic() {
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+        }
+    </script>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const videoElement = document.getElementById('webcam');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const scoreText = document.getElementById('score-text');
+        const timerText = document.getElementById('timer-text');
+        const timerLabel = document.getElementById('timer-label');
+        const questionPanel = document.getElementById('question-panel');
+        const panelTitle = document.getElementById('panel-title');
+        const questionEmoji = document.getElementById('question-emoji');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const loadingStatus = document.getElementById('loading-status');
+
+        const MAX_BALLOONS = 10;
+
+        const colorsData = {
+            red: { rgba: 'rgba(255, 60, 60, 0.65)', name: 'Red', emojis: ['🍎', '🍓', '🦞'] },
+            blue: { rgba: 'rgba(40, 120, 255, 0.65)', name: 'Blue', emojis: ['🐳', '🐬', '🚙'] },
+            green: { rgba: 'rgba(34, 197, 94, 0.65)', name: 'Green', emojis: ['🐸', '🥦', '🍉'] },
+            yellow: { rgba: 'rgba(234, 179, 8, 0.65)', name: 'Yellow', emojis: ['🍋', '🍌', '🧀'] },
+            orange: { rgba: 'rgba(249, 115, 22, 0.65)', name: 'Orange', emojis: ['🍊', '🥕', '🏀'] },
+            purple: { rgba: 'rgba(168, 85, 247, 0.65)', name: 'Purple', emojis: ['🍇', '🍆', '🔮'] },
+            pink: { rgba: 'rgba(236, 72, 153, 0.65)', name: 'Pink', emojis: ['🌸', '🦩', '🍩'] },
+            brown: { rgba: 'rgba(140, 80, 20, 0.65)', name: 'Brown', emojis: ['🐻', '🪵', '🍫'] },
+            gray: { rgba: 'rgba(120, 130, 140, 0.65)', name: 'Gray', emojis: ['🐘', '🐨', '🪙'] },
+            white: { rgba: 'rgba(255, 255, 255, 0.75)', name: 'White', emojis: ['🥛', '🐇', '☁️'] },
+            black: { rgba: 'rgba(30, 40, 50, 0.75)', name: 'Black', emojis: ['🐈‍⬛', '🎩', '💣'] }
+        };
+
+        const colorsList = Object.keys(colorsData);
+
+        let score = 0;
+        let timeLeft = 90;
+        let isGamePlaying = false;
+        let currentQuestion = null;
+        
+        let balloons = [];
+        let coins = []; 
+        let particles = [];
+        let feedbackEffects = [];
+        
+        let gameTimerInterval = null;
+        let activePointers = [];
+        
+        let isBonusMode = false;
+        let bonusTimeLeft = 0;
+        let correctAnswersCount = 0; 
+
+        function resizeToFullscreen() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if(isGamePlaying && balloons.length === 0 && !isBonusMode) spawnBalloons();
+        }
+        window.addEventListener('resize', resizeToFullscreen);
+        resizeToFullscreen();
+
+        class BonusCoin {
+            constructor() {
+                this.radius = Math.min(canvas.width, canvas.height) * 0.035;
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.y = -Math.random() * 300 - 50;
+                this.speed = Math.random() * 3 + 3; 
+                this.angle = Math.random() * Math.PI; 
+                this.spinSpeed = Math.random() * 0.06 + 0.03;
+            }
+            update() {
+                this.y += this.speed;
+                this.angle += this.spinSpeed;
+                if(this.y > canvas.height + this.radius * 2) {
+                    this.y = -50;
+                    this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(Math.sin(this.angle), 1); 
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#f59e0b';
+                ctx.strokeStyle = '#d97706';
+                ctx.lineWidth = 4;
+                ctx.fill(); ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 0.65, 0, Math.PI * 2);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fill();
+
+                ctx.fillStyle = '#d97706';
+                ctx.font = 'bold 18px Fredoka One, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('$', 0, 0);
+                ctx.restore();
+            }
+        }
+
+        class Balloon {
+            constructor(colorName) {
+                this.colorName = colorName;
+                this.colorInfo = colorsData[colorName];
+                this.radius = Math.min(canvas.width, canvas.height) * 0.06;
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.y = canvas.height + Math.random() * 400 + 100;
+                this.speed = Math.random() * 0.5 + 0.6; 
+                this.swingRange = Math.random() * 15 + 10;
+                this.swingSpeed = Math.random() * 0.015 + 0.005;
+                this.angle = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.y -= this.speed;
+                this.angle += this.swingSpeed;
+                this.currentX = this.x + Math.sin(this.angle) * this.swingRange;
+                if (this.y < -this.radius * 2) this.reset();
+            }
+
+            reset() {
+                this.y = canvas.height + Math.random() * 200 + 50;
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.speed = Math.random() * 0.5 + 0.6;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.currentX, this.y);
+
+                ctx.beginPath();
+                ctx.moveTo(0, this.radius);
+                ctx.bezierCurveTo(-5, this.radius + 15, 5, this.radius + 30, 0, this.radius + 50);
+                ctx.strokeStyle = 'rgba(100, 116, 139, 0.35)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, this.radius - 2);
+                ctx.lineTo(-8, this.radius + 10);
+                ctx.lineTo(8, this.radius + 10);
+                ctx.closePath();
+                ctx.fillStyle = this.colorInfo.rgba;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.radius * 0.85, this.radius, 0, 0, Math.PI * 2);
+                
+                let grad = ctx.createRadialGradient(-this.radius * 0.2, -this.radius * 0.3, this.radius * 0.1, 0, 0, this.radius);
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0.85)'); 
+                grad.addColorStop(0.3, this.colorInfo.rgba);       
+                grad.addColorStop(1, this.colorInfo.rgba.replace('0.65', '0.85').replace('0.75', '0.95')); 
+                
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.ellipse(-this.radius * 0.3, -this.radius * 0.4, this.radius * 0.2, this.radius * 0.3, Math.PI / 4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fill();
+
+                // --- เพิ่มส่วนวาดข้อความภาษาอังกฤษตามชื่อสีตรงนี้ ---
+                // เช็กว่าถ้าลูกโป่งสีสว่าง (ขาว, เหลือง) ให้ใช้ฟอนต์สีเข้ม ถ้าสีเข้มให้ใช้ฟอนต์สีขาว
+                ctx.fillStyle = (this.colorName === 'white' || this.colorName === 'yellow') ? 'rgba(15, 23, 42, 0.9)' : '#ffffff';
+                ctx.font = `bold ${Math.max(14, this.radius * 0.32)}px Fredoka One, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                ctx.shadowBlur = 3;
+                ctx.fillText(this.colorInfo.name, 0, 0); // วาด Text ลงตรงกลางแกน 0,0 ของลูกโป่ง
+
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.radius = Math.random() * 8 + 4;
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = Math.random() * 6 + 4;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.025 + 0.02;
+            }
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                this.alpha -= this.decay;
+            }
+            draw() {
+                ctx.save(); ctx.globalAlpha = this.alpha;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.fill(); ctx.restore();
+            }
+        }
+
+        class Feedback {
+            constructor(x, y, text, color) {
+                this.x = x; this.y = y; this.alpha = 1;
+                this.text = text; this.color = color;
+            }
+            update() {
+                this.y -= 2; this.alpha -= 0.025;
+            }
+            draw() {
+                ctx.save(); ctx.globalAlpha = this.alpha;
+                ctx.font = 'bold 28px Mitr, sans-serif'; ctx.fillStyle = this.color;
+                ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y); ctx.restore();
+            }
+        }
+
+        function generateQuestion() {
+            const randomColor = colorsList[Math.floor(Math.random() * colorsList.length)];
+            const colorObj = colorsData[randomColor];
+            const randomEmoji = colorObj.emojis[Math.floor(Math.random() * colorObj.emojis.length)];
+            currentQuestion = { color: randomColor, emoji: randomEmoji };
+            questionEmoji.textContent = randomEmoji;
+        }
+
+        function triggerBonusRound() {
+            isBonusMode = true;
+            bonusTimeLeft = 10; 
+            balloons = [];
+            coins = [];
+            
+            startMusic(true);
+
+            questionPanel.style.background = "linear-gradient(to right, #f59e0b, #ef4444)";
+            panelTitle.textContent = "💰 BONUS TIME! TAP COINS!! 💰";
+            questionEmoji.textContent = "🪙";
+            timerLabel.textContent = "BONUS:";
+            timerText.textContent = bonusTimeLeft + "s";
+            timerText.style.color = "#fbbf24";
+
+            for(let i=0; i<15; i++) {
+                coins.push(new BonusCoin());
+            }
+        }
+
+        function endBonusRound() {
+            isBonusMode = false;
+            coins = [];
+            correctAnswersCount = 0;
+            
+            startMusic(false);
+
+            questionPanel.style.background = "linear-gradient(to right, #fde047, #f59e0b)";
+            panelTitle.textContent = "What color is it? 🤔";
+            timerLabel.textContent = "TIME:";
+            timerText.textContent = timeLeft + "s";
+            timerText.style.color = "#f43f5e";
+            
+            generateQuestion();
+            spawnBalloons();
+        }
+
+        function spawnBalloons() {
+            balloons = [];
+            for (let i = 0; i < MAX_BALLOONS; i++) {
+                let randomColor = colorsList[Math.floor(Math.random() * colorsList.length)];
+                balloons.push(new Balloon(randomColor));
+            }
+        }
+
+        function drawCartoonBackground() {
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            if (isBonusMode) {
+                skyGrad.addColorStop(0, '#fef3c7');
+                skyGrad.addColorStop(0.5, '#fed7aa');
+                skyGrad.addColorStop(1, '#fdba74');
+            } else {
+                skyGrad.addColorStop(0, '#bae6fd');
+                skyGrad.addColorStop(0.6, '#bae6fd');
+                skyGrad.addColorStop(1, '#ccfbf1');
+            }
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.beginPath();
+            ctx.arc(canvas.width * 0.15, canvas.height * 0.15, 40, 0, Math.PI * 2);
+            ctx.arc(canvas.width * 0.20, canvas.height * 0.13, 55, 0, Math.PI * 2);
+            ctx.arc(canvas.width * 0.25, canvas.height * 0.15, 40, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = isBonusMode ? '#84cc16' : '#4ade80';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            ctx.quadraticCurveTo(canvas.width * 0.3, canvas.height * 0.75, canvas.width * 0.6, canvas.height * 0.85);
+            ctx.quadraticCurveTo(canvas.width * 0.8, canvas.height * 0.9, canvas.width, canvas.height * 0.8);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function checkMultiplayerCollisions() {
+            activePointers.forEach(pointer => {
+                if (isBonusMode) {
+                    for (let i = coins.length - 1; i >= 0; i--) {
+                        let coin = coins[i];
+                        let dist = Math.hypot(pointer.x - coin.x, pointer.y - coin.y);
+                        if (dist < coin.radius + 20) {
+                            score += 20; 
+                            scoreText.textContent = score;
+                            playCoinSound(); 
+                            feedbackEffects.push(new Feedback(coin.x, coin.y, '🪙 +20 Bonus!', '#fbbf24'));
+                            coins.splice(i, 1);
+                            coins.push(new BonusCoin()); 
+                            break;
+                        }
+                    }
+                } else {
+                    for (let i = balloons.length - 1; i >= 0; i--) {
+                        let balloon = balloons[i];
+                        let dist = Math.hypot(pointer.x - balloon.currentX, pointer.y - balloon.y);
+                        
+                        if (dist < balloon.radius + 20) { 
+                            if (balloon.colorName === currentQuestion.color) {
+                                score += 10;
+                                scoreText.textContent = score;
+                                playPopSound(); 
+                                correctAnswersCount++; 
+                                
+                                for (let p = 0; p < 20; p++) {
+                                    particles.push(new Particle(balloon.currentX, balloon.y, balloon.colorInfo.rgba));
+                                }
+                                feedbackEffects.push(new Feedback(balloon.currentX, balloon.y, '✨ Perfect! +10', '#4ade80'));
+                                
+                                balloons.splice(i, 1);
+                                balloons.push(new Balloon(colorsList[Math.floor(Math.random() * colorsList.length)]));
+                                
+                                if (correctAnswersCount >= 4) {
+                                    triggerBonusRound();
+                                } else {
+                                    generateQuestion();
+                                }
+                            } else {
+                                score = Math.max(0, score - 5);
+                                scoreText.textContent = score;
+                                playWrongSound(); 
+                                feedbackEffects.push(new Feedback(balloon.currentX, balloon.y, '😢 Sad... -5', '#f43f5e'));
+                                balloons.splice(i, 1);
+                                balloons.push(new Balloon(colorsList[Math.floor(Math.random() * colorsList.length)]));
+                            }
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+
+        function gameLoop() {
+            if (!isGamePlaying) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawCartoonBackground();
+
+            ctx.save();
+            ctx.globalAlpha = 0.45; 
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            if (isBonusMode) {
+                coins.forEach(coin => {
+                    coin.update();
+                    coin.draw();
+                });
+            } else {
+                balloons.forEach(balloon => {
+                    balloon.update();
+                    balloon.draw();
+                });
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i]; p.update(); p.draw();
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = feedbackEffects.length - 1; i >= 0; i--) {
+                let f = feedbackEffects[i]; f.update(); f.draw();
+                if (f.alpha <= 0) feedbackEffects.splice(i, 1);
+            }
+
+            checkMultiplayerCollisions();
+            activePointers.forEach((pointer, index) => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(pointer.x, pointer.y, 20, 0, Math.PI * 2);
+                const pointerColors = ['#ec4899', '#3b82f6', '#10b981', '#f59e0b'];
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.strokeStyle = pointerColors[index % pointerColors.length];
+                ctx.lineWidth = 4;
+                ctx.fill(); ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(pointer.x, pointer.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.restore();
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGameTimer() {
+            clearInterval(gameTimerInterval);
+            gameTimerInterval = setInterval(() => {
+                if (isGamePlaying) {
+                    if (isBonusMode) {
+                        bonusTimeLeft--;
+                        timerText.textContent = bonusTimeLeft + "s";
+                        if (bonusTimeLeft <= 0) endBonusRound();
+                    } else {
+                        timeLeft--;
+                        timerText.textContent = timeLeft + "s";
+                        if (timeLeft <= 0) endGame();
+                    }
+                }
+            }, 1000);
+        }
+
+        function startGame() {
+            score = 0; timeLeft = 90; correctAnswersCount = 0; isBonusMode = false;
+            scoreText.textContent = score;
+            timerText.textContent = timeLeft + "s";
+            isGamePlaying = true;
+            welcomeScreen.classList.add('hidden');
+            gameoverScreen.classList.add('hidden');
+            
+            questionPanel.style.background = "linear-gradient(to right, #fde047, #f59e0b)";
+            panelTitle.textContent = "What color is it? 🤔";
+            timerLabel.textContent = "TIME:";
+            timerText.style.color = "#f43f5e";
+
+            generateQuestion();
+            spawnBalloons();
+            startGameTimer();
+            startMusic(false); 
+            requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            isGamePlaying = false;
+            clearInterval(gameTimerInterval);
+            stopMusic(); 
+            document.getElementById('final-score').textContent = score;
+            gameoverScreen.classList.remove('hidden');
+        }
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 4, 
+            modelComplexity: 1,
+            minDetectionConfidence: 0.55,
+            minTrackingConfidence: 0.55
+        });
+
+        hands.onResults((results) => {
+            activePointers = []; 
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                results.multiHandLandmarks.forEach(handLandmarks => {
+                    const indexFingerTip = handLandmarks[8]; 
+                    activePointers.push({
+                        x: (1 - indexFingerTip.x) * canvas.width,
+                        y: indexFingerTip.y * canvas.height
+                    });
+                });
+            }
+        });
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        camera.start()
+            .then(() => {
+                loadingStatus.textContent = "ระบบเสียงและระบบตรวจจับพร้อมใช้งานแล้ว! กดปุ่มเพื่อเริ่มเล่น";
+                loadingStatus.className = "text-xs text-emerald-500 mt-3 font-bold";
+            })
+            .catch((err) => {
+                loadingStatus.textContent = "สิทธิ์เข้าถึงกล้องเว็บแคมถูกปฏิเสธ กรุณาเปิดสิทธิ์ของหน้าเว็บ";
+                loadingStatus.className = "text-xs text-rose-500 mt-3 font-bold";
+            });
+
+        startBtn.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            startGame();
+        });
+
+        restartBtn.addEventListener('click', startGame);
+    </script>
+</body>
+</html>
